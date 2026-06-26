@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iamlagging — fake a bad connection, on demand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #181818;
+    --paper: #ECECE6;
+    --paper-raised: #F6F5F0;
+    --signal: #4F7EDB;
+    --warn: #C9711C;
+    --muted: #7A7A72;
+    --line: #d8d7cf;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--body); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 28px 32px; max-width: 1080px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
+  .brand svg { width: 26px; height: 26px; flex-shrink: 0; }
+  .nav-links { display: flex; gap: 28px; font-size: 14px; font-weight: 500; color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+
+  .hero { padding: 64px 0 40px; text-align: center; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--paper-raised); border: 1px solid var(--line); border-radius: 100px; padding: 6px 14px; margin-bottom: 28px; }
+  .eyebrow .blip { width: 6px; height: 6px; border-radius: 50%; background: var(--signal); animation: blip 1.8s ease-in-out infinite; }
+  @keyframes blip { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(40px, 7vw, 76px); line-height: 1.02; letter-spacing: -0.02em; margin-bottom: 22px; }
+  h1 .lag-word span { display: inline-block; animation: lagIn 1.1s cubic-bezier(.2,.8,.2,1) backwards; }
+  @keyframes lagIn { 0% { opacity: 0; transform: translateX(18px) skewX(-6deg); filter: blur(3px); } 60% { opacity: 0.5; } 100% { opacity: 1; transform: translateX(0) skewX(0); filter: blur(0); } }
+
+  .hero p.lede { font-size: 19px; color: var(--muted); max-width: 540px; margin: 0 auto 36px; }
+  .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .btn { font-family: var(--body); font-weight: 600; font-size: 15px; padding: 14px 26px; border-radius: 10px; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.18); }
+  .btn-secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn-secondary:hover { border-color: var(--ink); }
+  .platform-note { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .mockup-stage { margin: 56px auto 0; max-width: 420px; perspective: 1200px; }
+  .mockup { background: #dcdcdc; border-radius: 22px; padding: 26px 24px; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.04); transform: rotateX(2deg); }
+  .mockup-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .mockup-head h3 { font-family: var(--display); font-size: 20px; color: #3a3a3a; }
+  .mockup-head .sub { font-size: 12px; color: #6b6b6b; font-weight: 500; margin-top: 3px; }
+  .mockup-wifi { width: 38px; height: 38px; }
+  .mockup-slider-card { background: #e9e9e9; border-radius: 14px; padding: 18px 16px 14px; margin-bottom: 16px; }
+  .mockup-track { height: 6px; border-radius: 3px; background: #d6d6d6; position: relative; margin-bottom: 10px; }
+  .mockup-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px; background: var(--signal); width: var(--w, 55%); transition: width 1.8s ease-in-out; }
+  .mockup-thumb { position: absolute; top: 50%; left: var(--w, 55%); width: 16px; height: 16px; border-radius: 50%; background: var(--signal); border: 2px solid #f4f4f4; transform: translate(-50%,-50%); transition: left 1.8s ease-in-out; }
+  .mockup-labels { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #4a4a4a; }
+  .mockup-stats { font-family: var(--mono); font-size: 11px; color: #7a7a7a; text-align: center; margin-bottom: 14px; }
+  .mockup-btn { width: 100%; padding: 13px; border-radius: 10px; background: var(--ink); color: #fff; font-weight: 700; font-size: 13px; text-align: center; letter-spacing: 0.4px; text-transform: uppercase; transition: background 1.8s ease; }
+  .mockup.live .mockup-btn { background: #d6492f; }
+
+  section { padding: 88px 0; }
+  .section-head { margin-bottom: 44px; max-width: 560px; }
+  .section-head .tag { font-family: var(--mono); font-size: 12px; color: var(--signal); margin-bottom: 10px; }
+  .section-head h2 { font-family: var(--display); font-size: clamp(26px, 4vw, 36px); font-weight: 600; letter-spacing: -0.01em; }
+  .section-head p { color: var(--muted); margin-top: 12px; font-size: 16px; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .step { border-top: 1px solid var(--line); padding-top: 20px; }
+  .step .num { font-family: var(--mono); font-size: 13px; color: var(--signal); margin-bottom: 12px; }
+  .step h3 { font-family: var(--display); font-size: 19px; font-weight: 600; margin-bottom: 8px; }
+  .step p { color: var(--muted); font-size: 14.5px; }
+
+  .cases { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .case { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .case .icon { font-family: var(--mono); font-size: 12px; color: var(--signal); margin-bottom: 10px; display: block; }
+  .case h3 { font-family: var(--display); font-size: 16.5px; font-weight: 600; margin-bottom: 6px; }
+  .case p { color: var(--muted); font-size: 14px; }
+
+  .download { background: var(--ink); color: var(--paper); border-radius: 22px; padding: 56px 48px; text-align: center; }
+  .download h2 { font-family: var(--display); font-size: clamp(26px, 4vw, 34px); margin-bottom: 14px; }
+  .download p { color: #ACACA4; max-width: 480px; margin: 0 auto 30px; font-size: 15.5px; }
+  .download .btn-primary { background: var(--paper); color: var(--ink); }
+  .download .btn-primary:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+  .checksum { font-family: var(--mono); font-size: 12px; color: #7d7d76; margin-top: 22px; }
+
+  .warning-box { margin-top: 28px; background: #2a2a26; border: 1px solid #3a3a35; border-radius: 12px; padding: 16px 20px; text-align: left; display: flex; gap: 12px; max-width: 520px; margin-left: auto; margin-right: auto; }
+  .warning-box .glyph { font-family: var(--mono); color: var(--warn); font-size: 16px; flex-shrink: 0; }
+  .warning-box p { color: #C7C7BE; font-size: 13.5px; margin: 0; text-align: left; }
+  .warning-box strong { color: var(--paper); }
+
+  .feedback { border: 1px solid var(--line); border-radius: 18px; padding: 44px 40px; background: var(--paper-raised); display: flex; justify-content: space-between; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .feedback-text h2 { font-family: var(--display); font-size: 24px; font-weight: 600; margin-bottom: 10px; }
+  .feedback-text p { color: var(--muted); font-size: 15px; max-width: 420px; }
+  .feedback-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); flex-wrap: wrap; gap: 12px; }
+  footer .brand-mini { display: flex; align-items: center; gap: 8px; font-family: var(--mono); }
+  footer .brand-mini svg { width: 16px; height: 16px; }
+
+  @media (max-width: 760px) {
+    .steps { grid-template-columns: 1fr; }
+    .cases { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+    .feedback { flex-direction: column; align-items: flex-start; }
+    .download { padding: 40px 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <svg viewBox="0 0 512 512"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M 96 200 A 226 226 0 0 1 416 200" stroke-width="40"/><path d="M 146 260 A 156 156 0 0 1 366 260" stroke-width="40"/><path d="M 196 318 A 86 86 0 0 1 316 318" stroke-width="40"/></g><rect x="216" y="350" width="80" height="80" fill="currentColor"/></svg>
+    iamlagging
+  </div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#cases">Use cases</a>
+    <a href="#download">Download</a>
+    <a href="#feedback">Feedback</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow"><span class="blip"></span> Free &middot; open source &middot; Windows</div>
+    <h1>
+      <span class="lag-word"><span style="animation-delay:0.05s">Y</span><span style="animation-delay:0.1s">o</span><span style="animation-delay:0.15s">u</span><span style="animation-delay:0.2s">r</span></span>
+      &nbsp;wifi&nbsp;
+      <span class="lag-word"><span style="animation-delay:0.3s">i</span><span style="animation-delay:0.38s">s</span></span>
+      &nbsp;
+      <span class="lag-word"><span style="animation-delay:0.5s">f</span><span style="animation-delay:0.62s">i</span><span style="animation-delay:0.74s">n</span><span style="animation-delay:0.86s">e</span><span style="animation-delay:0.98s">.</span></span>
+      <br>
+      <span class="lag-word"><span style="animation-delay:1.15s">U</span><span style="animation-delay:1.25s">n</span><span style="animation-delay:1.35s">t</span><span style="animation-delay:1.45s">i</span><span style="animation-delay:1.55s">l</span></span>
+      &nbsp;
+      <span class="lag-word"><span style="animation-delay:1.7s">y</span><span style="animation-delay:1.8s">o</span><span style="animation-delay:1.9s">u</span></span>
+      &nbsp;
+      <span class="lag-word"><span style="animation-delay:2.05s">d</span><span style="animation-delay:2.15s">e</span><span style="animation-delay:2.25s">c</span><span style="animation-delay:2.35s">i</span><span style="animation-delay:2.45s">d</span><span style="animation-delay:2.55s">e</span></span>
+      &nbsp;it&nbsp;isn't.
+    </h1>
+    <p class="lede">A one-click Windows app that fakes a bad internet connection — system-wide, with a slider. For dodging meetings, testing apps, or just messing with a friend's call.</p>
+    <div class="cta-row">
+      <a href="#download" class="btn btn-primary">Download for Windows</a>
+      <a href="#how" class="btn btn-secondary">See how it works</a>
+    </div>
+    <div class="platform-note">v1.0 &middot; Windows 10/11 &middot; ~73MB installer</div>
+
+    <div class="mockup-stage">
+      <div class="mockup" id="mockup">
+        <div class="mockup-head">
+          <div>
+            <h3>iamlagging</h3>
+            <div class="sub">Simulate a bad connection, system-wide</div>
+          </div>
+          <svg class="mockup-wifi" viewBox="0 0 512 512"><g fill="none" stroke="#1a1a1a" stroke-linecap="round"><path d="M 96 200 A 226 226 0 0 1 416 200" stroke-width="34"/><path d="M 146 260 A 156 156 0 0 1 366 260" stroke-width="34"/><path d="M 196 318 A 86 86 0 0 1 316 318" stroke-width="34"/></g><rect x="216" y="350" width="80" height="80" fill="#1a1a1a"/></svg>
+        </div>
+        <div class="mockup-slider-card">
+          <div class="mockup-track" id="mockTrack"><div class="mockup-fill"></div><div class="mockup-thumb"></div></div>
+          <div class="mockup-labels"><span>Good</span><span>Terrible</span></div>
+        </div>
+        <div class="mockup-stats" id="mockStats">~9,400 kbps &middot; +330ms latency &middot; 8.3% loss</div>
+        <div class="mockup-btn" id="mockBtn">Start throttle</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="section-head">
+      <div class="tag">// how it works</div>
+      <h2>Three steps. No terminal.</h2>
+      <p>Everything happens behind one click — the app handles the Windows admin prompt for you.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="num">01</div>
+        <h3>Install</h3>
+        <p>Download the installer, run it, done. A small icon shows up in your system tray.</p>
+      </div>
+      <div class="step">
+        <div class="num">02</div>
+        <h3>Set the damage</h3>
+        <p>Click the tray icon, drag the slider from "Good" to "Terrible." Bandwidth, latency, and packet loss all move together.</p>
+      </div>
+      <div class="step">
+        <div class="num">03</div>
+        <h3>Hit start</h3>
+        <p>Your real connection throttles, system-wide. Meet, Zoom, games, downloads — everything reacts like it's genuinely struggling. One click to undo it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="cases">
+    <div class="section-head">
+      <div class="tag">// who's this for</div>
+      <h2>More uses than you'd think</h2>
+      <p>Built for one reason, useful for a few more.</p>
+    </div>
+    <div class="cases">
+      <div class="case">
+        <span class="icon">[escape]</span>
+        <h3>Dodge a call gracefully</h3>
+        <p>"Sorry, my connection is dying" has never been more true.</p>
+      </div>
+      <div class="case">
+        <span class="icon">[qa]</span>
+        <h3>Test your app under real bad conditions</h3>
+        <p>See how your video call tool, site, or game actually behaves on a throttled connection — not a simulated one.</p>
+      </div>
+      <div class="case">
+        <span class="icon">[support]</span>
+        <h3>Train support teams</h3>
+        <p>Practice troubleshooting calls with a customer on genuinely bad wifi, on demand.</p>
+      </div>
+      <div class="case">
+        <span class="icon">[bit]</span>
+        <h3>Mess with a friend</h3>
+        <p>Throttle their stream mid-game. Watch the chat figure it out.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="download">
+      <h2>Get iamlagging</h2>
+      <p>Free, open source, and yours to use however you want.</p>
+      <a href="https://github.com/bigDaww/iamlagging/releases/download/iamlagging.0.0.01/iamlagging.Setup.1.0.0.exe" class="btn btn-primary">Download for Windows — v1.0</a>
+      <div class="checksum">SHA-256: c8bf42c33ad80e9a770d568d1736492b73fc50a3f9043cc85e5674aeee6c5765&nbsp;&nbsp;&middot;&nbsp;&nbsp;73MB&nbsp;&nbsp;&middot;&nbsp;&nbsp;Windows 10/11</div>
+
+      <div class="warning-box">
+        <span class="glyph">!</span>
+        <p><strong>Windows will show an "Unknown publisher" warning.</strong> That's expected — this is a small open-source tool without a paid certificate. Click "More info" → "Run anyway" to continue.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="feedback">
+    <div class="feedback">
+      <div class="feedback-text">
+        <h2>Found a bug? Got an idea?</h2>
+        <p>If you run into something broken, or there's a feature you wish this had, we'd genuinely love to hear it.</p>
+      </div>
+      <div class="feedback-actions">
+        <a href="mailto:speakwisebiz@gmail.com?subject=iamlagging%20feedback" class="btn btn-primary">Send feedback</a>
+        <a href="https://github.com/bigDaww/iamlagging/issues" class="btn btn-secondary">Open an issue</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="brand-mini">
+      <svg viewBox="0 0 512 512"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M 96 200 A 226 226 0 0 1 416 200" stroke-width="40"/><path d="M 146 260 A 156 156 0 0 1 366 260" stroke-width="40"/><path d="M 196 318 A 86 86 0 0 1 316 318" stroke-width="40"/></g><rect x="216" y="350" width="80" height="80" fill="currentColor"/></svg>
+      iamlagging
+    </div>
+    <div>MIT licensed &middot; made for fun (and graceful exits)</div>
+  </footer>
+
+</div>
+
+<script>
+  const track = document.getElementById('mockTrack');
+  const stats = document.getElementById('mockStats');
+  const btn = document.getElementById('mockBtn');
+  const mockup = document.getElementById('mockup');
+  const states = [
+    { w: '15%', bw: '17,200', lat: '90', loss: '1.5', live: false },
+    { w: '68%', bw: '6,700', lat: '410', loss: '10.2', live: true },
+    { w: '92%', bw: '1,100', lat: '560', loss: '13.8', live: true },
+    { w: '30%', bw: '13,900', lat: '180', loss: '4.5', live: false }
+  ];
+  let i = 0;
+  function cycle() {
+    const s = states[i % states.length];
+    track.style.setProperty('--w', s.w);
+    stats.textContent = `~${s.bw} kbps · +${s.lat}ms latency · ${s.loss}% loss`;
+    btn.textContent = s.live ? 'Stop throttle' : 'Start throttle';
+    mockup.classList.toggle('live', s.live);
+    i++;
+  }
+  cycle();
+  setInterval(cycle, 3200);
+</script>
+
+</body>
+</html>
